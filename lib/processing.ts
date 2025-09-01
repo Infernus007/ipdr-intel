@@ -2,6 +2,7 @@
 'use client';
 
 import { EvidenceFile, IPDRRecord, TelecomOperator } from './types';
+import { globalCoC, getBrowserFingerprint, getCurrentLocation } from './chain-of-custody';
 
 // Compute SHA-256 (hex) of ArrayBuffer
 export async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
@@ -147,6 +148,27 @@ export async function processAirtelFile(
   const startTime = Date.now();
   const fileId = `file_${Date.now()}`;
   
+  // Get browser environment data for Chain of Custody
+  const deviceFingerprint = getBrowserFingerprint();
+  const location = await getCurrentLocation();
+  const ipAddress = 'demo_ip'; // In real implementation, get from server
+  const userAgent = typeof window !== 'undefined' ? navigator.userAgent : 'Server';
+  
+  // Log file upload in Chain of Custody
+  await globalCoC.addAuditEntry(
+    'demo_user',
+    'upload',
+    fileId,
+    {
+      filename: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      caseId,
+      action: 'file_upload_initiated'
+    },
+    { ipAddress, userAgent, location, deviceFingerprint }
+  );
+  
   // For small files (< 50MB), use original method
   if (file.size < 50 * 1024 * 1024) {
     const arrayBuf = await blobToArrayBuffer(file);
@@ -154,6 +176,21 @@ export async function processAirtelFile(
     const text = new TextDecoder().decode(arrayBuf);
     const rows = parseDelimited(text);
     const records = await normalizeAirtelRows(rows, caseId, fileId, 'airtel');
+    
+    // Log parsing completion
+    await globalCoC.addAuditEntry(
+      'system',
+      'parse',
+      fileId,
+      {
+        sha256Hash: sha256,
+        recordsProcessed: records.length,
+        processingTime: Date.now() - startTime,
+        fileSize: file.size,
+        action: 'file_parsing_completed'
+      },
+      { ipAddress, userAgent, location, deviceFingerprint }
+    );
     
     const evidence = {
       id: fileId,
@@ -166,18 +203,36 @@ export async function processAirtelFile(
       uploadedBy: 'demo_user',
       uploadedAt: new Date()
     };
+    
+    // Log evidence creation
+    await globalCoC.addAuditEntry(
+      'system',
+      'upload',
+      fileId,
+      {
+        evidenceId: fileId,
+        sha256Hash: sha256,
+        storageUri: evidence.storageUri,
+        action: 'evidence_record_created'
+      },
+      { ipAddress, userAgent, location, deviceFingerprint }
+    );
+    
     return { evidence, records };
   }
 
   // For large files, use streaming processing
-  return await processLargeAirtelFile(file, caseId, fileId, onProgress);
+  return await processLargeAirtelFile(file, caseId, fileId, onProgress, {
+    ipAddress, userAgent, location, deviceFingerprint
+  });
 }
 
 async function processLargeAirtelFile(
   file: File,
   caseId: string,
   fileId: string,
-  onProgress?: (progress: ProcessingProgress) => void
+  onProgress?: (progress: ProcessingProgress) => void,
+  cocData?: { ipAddress: string; userAgent: string; location: string; deviceFingerprint: string }
 ): Promise<{ evidence: Omit<EvidenceFile, 'status'>; records: IPDRRecord[] }> {
   const startTime = Date.now();
   const chunkSize = 10 * 1024 * 1024; // 10MB chunks
@@ -285,6 +340,24 @@ async function processLargeAirtelFile(
     
     const sha256 = await sha256Hex(totalBuffer);
     
+    // Log parsing completion for large files
+    if (cocData) {
+      await globalCoC.addAuditEntry(
+        'system',
+        'parse',
+        fileId,
+        {
+          sha256Hash: sha256,
+          recordsProcessed: allRecords.length,
+          processingTime: Date.now() - startTime,
+          fileSize: file.size,
+          chunksProcessed: totalChunks,
+          action: 'large_file_parsing_completed'
+        },
+        cocData
+      );
+    }
+
     const evidence = {
       id: fileId,
       caseId,
@@ -296,6 +369,23 @@ async function processLargeAirtelFile(
       uploadedBy: 'demo_user',
       uploadedAt: new Date()
     };
+    
+    // Log evidence creation for large files
+    if (cocData) {
+      await globalCoC.addAuditEntry(
+        'system',
+        'upload',
+        fileId,
+        {
+          evidenceId: fileId,
+          sha256Hash: sha256,
+          storageUri: evidence.storageUri,
+          processingMethod: 'streaming',
+          action: 'evidence_record_created'
+        },
+        cocData
+      );
+    }
     
     return { evidence, records: allRecords };
     

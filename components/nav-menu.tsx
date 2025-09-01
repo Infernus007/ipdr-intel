@@ -49,6 +49,7 @@ const navigationLinks = [
     type: "simple",
     items: [
       { href: "/reports", label: "Generate Report" },
+      { href: "/chain-of-custody", label: "Chain of Custody" },
       { href: "/exports", label: "Export History" },
       { href: "/audit", label: "Audit Trail" },
     ],

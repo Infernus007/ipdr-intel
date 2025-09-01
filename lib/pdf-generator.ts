@@ -3,6 +3,7 @@
 import jsPDF from 'jspdf';
 import { Case, IPDRRecord, Anomaly, EvidenceFile } from './types';
 import { formatTimestamp, formatBytes } from '@/utils/formatters';
+import { globalCoC, AuditLogEntry } from './chain-of-custody';
 
 interface ReportData {
   case: Case;
@@ -351,8 +352,8 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
     yPosition += 10;
   };
 
-  // Audit Trail
-  const addAuditTrail = () => {
+  // Chain of Custody Audit Trail
+  const addChainOfCustody = async () => {
     if (yPosition > pageHeight - 50) {
       pdf.addPage();
       yPosition = margin;
@@ -361,46 +362,109 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
 
     pdf.setFontSize(16);
     pdf.setFont(undefined, 'bold');
-    pdf.text('Audit Trail', margin, yPosition);
+    pdf.text('Chain of Custody - Audit Trail', margin, yPosition);
     yPosition += 15;
 
     pdf.setFontSize(12);
     pdf.setFont(undefined, 'normal');
+    
+    // Add integrity verification status
+    const verification = await globalCoC.verifyChainIntegrity();
+    pdf.setFont(undefined, 'bold');
+    pdf.text(`Chain Integrity Status: ${verification.isValid ? 'VERIFIED' : 'COMPROMISED'}`, margin, yPosition);
+    yPosition += 8;
+    
+    if (!verification.isValid) {
+      pdf.setTextColor(255, 0, 0);
+      pdf.text(`Integrity Errors: ${verification.errors.length}`, margin, yPosition);
+      yPosition += 6;
+      verification.errors.slice(0, 3).forEach(error => {
+        pdf.text(`• ${error}`, margin + 10, yPosition);
+        yPosition += 6;
+      });
+      pdf.setTextColor(0, 0, 0);
+    }
+    yPosition += 10;
 
-    const auditEntries = [
-      {
-        timestamp: data.case.createdAt,
-        action: 'Case Created',
-        actor: data.case.createdBy,
-        details: `Case "${data.case.title}" created`
-      },
-      ...data.evidenceFiles.map(file => ({
-        timestamp: file.uploadedAt,
-        action: 'Evidence Uploaded',
-        actor: file.uploadedBy,
-        details: `File "${file.filename}" uploaded and processed`
-      })),
-      {
-        timestamp: new Date(),
-        action: 'Report Generated',
-        actor: 'System',
-        details: 'Secure PDF report generated with Section 65B certificate'
-      }
-    ].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    // Get full audit log
+    const fullAuditLog = globalCoC.getFullAuditLog();
+    
+    pdf.setFont(undefined, 'bold');
+    pdf.text(`Total Audit Entries: ${fullAuditLog.length}`, margin, yPosition);
+    yPosition += 10;
 
-    auditEntries.forEach((entry, index) => {
-      if (yPosition > pageHeight - 30) {
+    pdf.setFont(undefined, 'normal');
+    pdf.text('Recent Chain of Custody Events:', margin, yPosition);
+    yPosition += 10;
+
+    // Show last 10 audit entries
+    const recentEntries = fullAuditLog.slice(-10);
+    
+    recentEntries.forEach((entry, index) => {
+      if (yPosition > pageHeight - 40) {
         pdf.addPage();
         yPosition = margin;
         addWatermark();
       }
 
-      pdf.text(`${index + 1}. ${formatTimestamp(entry.timestamp)} - ${entry.action}`, margin, yPosition);
+      const actionLabels: Record<string, string> = {
+        'upload': 'Evidence Upload',
+        'parse': 'Data Processing',
+        'analyze': 'Analysis',
+        'export': 'Export/Report',
+        'view': 'Access',
+        'verify': 'Verification'
+      };
+
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`${recentEntries.length - index}. ${formatTimestamp(entry.timestamp)} - ${actionLabels[entry.action] || entry.action.toUpperCase()}`, margin, yPosition);
       yPosition += 6;
+      
+      pdf.setFont(undefined, 'normal');
       pdf.text(`   Actor: ${entry.actor}`, margin + 10, yPosition);
+      yPosition += 5;
+      pdf.text(`   Subject: ${entry.subject}`, margin + 10, yPosition);
+      yPosition += 5;
+      pdf.text(`   Hash: ${entry.currentHash.slice(0, 32)}...`, margin + 10, yPosition);
+      yPosition += 5;
+      
+      if (entry.metadata.action) {
+        pdf.text(`   Action: ${entry.metadata.action}`, margin + 10, yPosition);
+        yPosition += 5;
+      }
+      
+      if (entry.ipAddress) {
+        pdf.text(`   IP: ${entry.ipAddress}`, margin + 10, yPosition);
+        yPosition += 5;
+      }
+      
+      yPosition += 3;
+    });
+
+    yPosition += 10;
+    
+    // Add BSA 2023 compliance statement
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Legal Compliance:', margin, yPosition);
+    yPosition += 8;
+    
+    pdf.setFont(undefined, 'normal');
+    const complianceText = [
+      '• Chain of Custody maintained per Bharatiya Sakshya Adhiniyam (BSA) 2023, Section 63',
+      '• Cryptographic integrity verification using SHA-256 hash chaining',
+      '• Tamper-evident audit logging with timestamp verification',
+      '• Digital evidence preservation with immutable audit trail',
+      '• Compliance with Telecommunications Act 2023 and DPDP Act 2023'
+    ];
+    
+    complianceText.forEach(text => {
+      if (yPosition > pageHeight - 20) {
+        pdf.addPage();
+        yPosition = margin;
+        addWatermark();
+      }
+      pdf.text(text, margin, yPosition);
       yPosition += 6;
-      pdf.text(`   Details: ${entry.details}`, margin + 10, yPosition);
-      yPosition += 8;
     });
   };
 
@@ -411,7 +475,21 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
   addKeyFindings();
   addAnomalies();
   addEvidenceFiles();
-  addAuditTrail();
+  await addChainOfCustody();
+  
+  // Log report generation in Chain of Custody
+  await globalCoC.addAuditEntry(
+    'system',
+    'export',
+    data.case.id,
+    {
+      reportType: 'secure_pdf',
+      evidenceFiles: data.evidenceFiles.length,
+      recordsIncluded: data.records.length,
+      anomaliesIncluded: data.anomalies.length,
+      action: 'court_ready_report_generated'
+    }
+  );
 
   // Final page with signature
   pdf.addPage();
