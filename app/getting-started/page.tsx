@@ -17,7 +17,8 @@ import {
   Play,
   BookOpen,
   Lightbulb,
-  Target
+  Target,
+  Download
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -223,6 +224,72 @@ function GettingStartedContent() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+
+        {/* Sample Data Section */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
+            Get Started with Sample Data
+          </h2>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-8">
+            <div className="text-center mb-6">
+              <div className="bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4">
+                <Download className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-blue-900 mb-2">Test the System with Sample IPDR Files</h3>
+              <p className="text-blue-800 max-w-2xl mx-auto">
+                Download our sample CSV files to understand the expected format and test all features 
+                without uploading your own data. Perfect for learning the system and validating your setup.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white p-4 rounded-lg border border-blue-200 text-center">
+                <div className="text-2xl font-bold text-blue-600 mb-2">1K Records</div>
+                <div className="text-sm text-gray-600 mb-3">Small Sample (95KB)</div>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <a href="/test-data/airtel_test_small_1k.csv" download>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </a>
+                </Button>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200 text-center">
+                <div className="text-2xl font-bold text-blue-600 mb-2">100K Records</div>
+                <div className="text-sm text-gray-600 mb-3">Medium Sample (9.3MB)</div>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <a href="/test-data/airtel_test_medium_100k.csv" download>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </a>
+                </Button>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200 text-center">
+                <div className="text-2xl font-bold text-blue-600 mb-2">1M Records</div>
+                <div className="text-sm text-gray-600 mb-3">Large Sample (93MB)</div>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <a href="/test-data/airtel_test_large_1m.csv" download>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </a>
+                </Button>
+              </div>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-gray-900 mb-3">Expected CSV Format:</h4>
+              <div className="bg-gray-50 p-3 rounded font-mono text-sm text-gray-700">
+                SourceIP, DestinationIP, Protocol, StartTime, EndTime, Bytes
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                The sample files contain realistic IPDR data that demonstrates all system features including 
+                analytics, network visualization, and reporting capabilities.
+              </p>
+            </div>
           </div>
         </div>
 

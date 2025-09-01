@@ -212,6 +212,10 @@ export function IPDRFileUpload({ caseId, onFilesUploaded }: IPDRFileUploadProps)
             Supports CSV, Excel, XML, TXT, DAT files (max. {maxSizeMB}MB each) • Enterprise-grade streaming processing
           </p>
           
+          <div className="text-xs text-blue-600 mb-4">
+            💡 <strong>New to IPDR?</strong> Download sample CSV files from the dashboard to test the system first.
+          </div>
+          
           <div className="flex flex-wrap gap-2 mb-4">
             {Object.entries(operatorColors).map(([operator, color]) => (
               <div key={operator} className="flex items-center gap-1 px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${color}15`, color }}>
