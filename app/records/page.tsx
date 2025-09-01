@@ -114,6 +114,43 @@ function RecordsContent() {
           />
         </div>
 
+        {/* Sample Data Section - Show when no records */}
+        {records.length === 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-full">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 mb-2">No records found</h4>
+                <p className="text-sm text-blue-800 mb-3">
+                  Upload IPDR files or download sample data to get started with the analysis.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_small_1k.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Small Sample (1K records)
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_medium_100k.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Medium Sample (100K records)
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_large_1m.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Large Sample (1M records)
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Records Table */}
         <div className="bg-white rounded-lg shadow-sm border p-6" {...walkthroughTarget}>
           <div className="flex items-center gap-2 mb-4">

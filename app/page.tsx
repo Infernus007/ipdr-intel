@@ -19,7 +19,8 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Clock,
-  BookOpenIcon
+  BookOpenIcon,
+  Download
 } from 'lucide-react';
 
 function HomeContent() {
@@ -157,6 +158,45 @@ function HomeContent() {
               </div>
             )}
           </div>
+          
+          {/* Sample Data Section */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-full">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 mb-2">Need sample data to test?</h4>
+                <p className="text-sm text-blue-800 mb-3">
+                  Download our sample IPDR CSV files to test the system and understand the expected format.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_small_1k.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Small Sample (1K records, 95KB)
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_medium_100k.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Medium Sample (100K records, 9.3MB)
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="text-blue-700 border-blue-300 hover:bg-blue-100">
+                    <a href="/test-data/airtel_test_large_1m.csv" download>
+                      <Download className="h-4 w-4 mr-2" />
+                      Large Sample (1M records, 93MB)
+                    </a>
+                  </Button>
+                </div>
+                <div className="mt-2 text-xs text-blue-700">
+                  <strong>Expected format:</strong> SourceIP, DestinationIP, Protocol, StartTime, EndTime, Bytes
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div data-walkthrough="upload-area" id="try-demo">
             <IPDRFileUpload caseId={currentCase.id} />
           </div>
