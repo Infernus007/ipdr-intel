@@ -138,7 +138,7 @@ function ChainOfCustodyContent() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Chain of Custody</h1>
               <p className="text-gray-600">
-                Complete audit trail and legal compliance for case: <strong>{currentCase.name}</strong>
+                Complete audit trail and legal compliance for case: <strong>{currentCase.title}</strong>
               </p>
             </div>
             <div className="flex gap-2">
