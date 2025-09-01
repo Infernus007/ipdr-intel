@@ -22,7 +22,7 @@ import {
 const navigationLinks = [
   { href: "/", label: "Dashboard" },
   { href: "/features", label: "Features" },
-  { href: "/getting-started", label: "Getting Started" },
+  // { href: "/getting-started", label: "Getting Started" },
   {
     label: "Investigation",
     submenu: true,
@@ -36,13 +36,14 @@ const navigationLinks = [
       {
         href: "/analytics",
         label: "Analytics",
-        description: "AI-powered anomaly detection.",
+        description: "Analytics and Anomaly detection.",
       },
       {
         href: "/graph",
         label: "Network Graph",
         description: "Interactive relationship mapping.",
       },
+
     ],
   },
   {
@@ -52,19 +53,11 @@ const navigationLinks = [
     items: [
       { href: "/reports", label: "Generate Report" },
       { href: "/chain-of-custody", label: "Chain of Custody" },
-      { href: "/exports", label: "Export History" },
-      { href: "/audit", label: "Audit Trail" },
     ],
   },
-  {
-    label: "Tools",
-    submenu: true,
-    type: "icon",
-    items: [
-      { href: "/diagnostics", label: "Diagnostics", icon: "BookOpenIcon" },
-      { href: "/settings", label: "Settings", icon: "LifeBuoyIcon" },
-      { href: "/help", label: "Help", icon: "InfoIcon" },
-    ],
+      { href: "/diagnostics", label: "Diagnostics", icon: "BookOpenIcon" ,
+      // { href: "/settings", label: "Settings", icon: "LifeBuoyIcon" },
+      // { href: "/help", label: "Help", icon: "InfoIcon" },
   },
 ]
 
@@ -260,14 +253,7 @@ export default function Component() {
           </div>
         </div>
         {/* Right side */}
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="text-sm">
-            <a href="#">Sign In</a>
-          </Button>
-          <Button asChild size="sm" className="text-sm">
-            <a href="#">Get Started</a>
-          </Button>
-        </div>
+        
       </div>
     </header>
   )

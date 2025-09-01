@@ -17,7 +17,32 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
   const margin = 20;
+  const maxWidth = pageWidth - (2 * margin);
   let yPosition = margin;
+
+  // Helper function to check if we need a new page
+  const checkPageBreak = (requiredSpace: number = 30) => {
+    if (yPosition + requiredSpace > pageHeight - margin) {
+      pdf.addPage();
+      yPosition = margin;
+      addWatermark();
+      return true;
+    }
+    return false;
+  };
+
+  // Helper function to add text with word wrapping
+  const addWrappedText = (text: string, x: number, fontSize: number = 12, textMaxWidth?: number) => {
+    const actualMaxWidth = textMaxWidth || (maxWidth - x + margin);
+    pdf.setFontSize(fontSize);
+    const lines = pdf.splitTextToSize(text, actualMaxWidth);
+    
+    lines.forEach((line: string) => {
+      checkPageBreak();
+      pdf.text(line, x, yPosition);
+      yPosition += fontSize * 0.5; // Line height
+    });
+  };
 
   // Watermark function
   const addWatermark = () => {
@@ -33,134 +58,143 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
   // Header function
   const addHeader = () => {
     addWatermark();
-    pdf.setFontSize(20);
-    pdf.setFont(undefined, 'bold');
+    
+    // Title
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('IPDR-Intel+ Investigation Report', margin, yPosition);
-    yPosition += 15;
+    yPosition += 20;
     
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
+    // Generation info
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
     pdf.text(`Generated: ${formatTimestamp(new Date())}`, margin, yPosition);
-    yPosition += 10;
+    yPosition += 12;
     
-    // Report hash for integrity
+    // Report ID
     const reportId = `RPT_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
     pdf.text(`Report ID: ${reportId}`, margin, yPosition);
-    yPosition += 15;
+    yPosition += 20;
   };
 
-  // Section 65B Certificate
-  const addSection65B = () => {
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Section 65B Certificate (Indian Evidence Act, 1872)', margin, yPosition);
+  // Section 63S Certificate
+  const addSection63S = () => {
+    checkPageBreak(50);
+    
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Section 63S Certificate (Indian Evidence Act, 1872)', margin, yPosition);
     yPosition += 15;
 
-    pdf.setFontSize(11);
-    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
     
-    const certificate = [
-      'CERTIFICATE UNDER SECTION 65B OF THE INDIAN EVIDENCE ACT, 1872',
+    const certificateLines = [
+      'CERTIFICATE UNDER SECTION 63S OF THE INDIAN EVIDENCE ACT, 1872',
       '',
       'I, Detective Sarah Johnson, hereby certify that:',
       '',
-      '1. The computer output contained in this report has been produced by a computer during',
-      '   the period over which the computer was used regularly to store or process information',
-      '   for the purposes of digital forensic investigation.',
+      '1. The computer output contained in this report has been produced by a computer during the period over which the computer was used regularly to store or process information for the purposes of digital forensic investigation.',
       '',
-      '2. During the said period, information of the kind contained or of the kind from which',
-      '   the information contained in the statement is derived was regularly fed into the computer',
-      '   in the ordinary course of the said activities.',
+      '2. During the said period, information of the kind contained or of the kind from which the information contained in the statement is derived was regularly fed into the computer in the ordinary course of the said activities.',
       '',
-      '3. Throughout the material part of the said period, the computer was operating properly,',
-      '   or if not, any respect in which it was not operating properly or was out of operation',
-      '   during that part of that period was not such as to affect the production of the document',
-      '   or the accuracy of its contents.',
+      '3. Throughout the material part of the said period, the computer was operating properly, or if not, any respect in which it was not operating properly or was out of operation during that part of that period was not such as to affect the production of the document or the accuracy of its contents.',
       '',
-      '4. The information contained in this report reproduces or is derived from information',
-      '   supplied to the computer in the ordinary course of the said activities.',
+      '4. The information contained in this report reproduces or is derived from information supplied to the computer in the ordinary course of the said activities.',
       '',
-      '5. The digital evidence has been preserved in its original form using SHA-256 hashing',
-      '   to ensure integrity and prevent tampering.',
+      '5. The digital evidence has been preserved in its original form using SHA-256 hashing to ensure integrity and prevent tampering.',
       '',
       `Signed: Detective Sarah Johnson`,
       `Date: ${formatTimestamp(new Date())}`,
       `Designation: Lead Digital Forensics Investigator`
     ];
 
-    certificate.forEach(line => {
-      if (yPosition > pageHeight - 30) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
+    certificateLines.forEach(line => {
+      if (line.trim() === '') {
+        yPosition += 6;
+      } else {
+        checkPageBreak();
+        if (line.startsWith('Signed:') || line.startsWith('Date:') || line.startsWith('Designation:')) {
+          pdf.setFont('helvetica', 'bold');
+        } else {
+          pdf.setFont('helvetica', 'normal');
+        }
+        addWrappedText(line, margin, 10);
+        yPosition += 2;
       }
-      pdf.text(line, margin, yPosition);
-      yPosition += 6;
     });
 
-    yPosition += 10;
+    yPosition += 15;
   };
 
   // Case Summary
   const addCaseSummary = () => {
-    if (yPosition > pageHeight - 50) {
-      pdf.addPage();
-      yPosition = margin;
-      addWatermark();
-    }
+    checkPageBreak(50);
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Case Summary', margin, yPosition);
     yPosition += 15;
 
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
     
-    const summary = [
-      `Case ID: ${data.case.id}`,
-      `Case Title: ${data.case.title}`,
-      `Description: ${data.case.description || 'N/A'}`,
-      `Status: ${data.case.status.toUpperCase()}`,
-      `Created By: ${data.case.createdBy}`,
-      `Created Date: ${formatTimestamp(data.case.createdAt)}`,
-      `Last Updated: ${formatTimestamp(data.case.updatedAt)}`,
-      '',
-      'Investigation Statistics:',
-      `• Total Evidence Files: ${data.evidenceFiles.length}`,
-      `• Total Records Analyzed: ${data.records.length.toLocaleString()}`,
-      `• Anomalies Detected: ${data.anomalies.length}`,
-      `• Data Volume: ${formatBytes(data.records.reduce((sum, r) => sum + r.bytesTransferred, 0))}`,
+    const caseDetails = [
+      { label: 'Case ID:', value: data.case.id },
+      { label: 'Case Title:', value: data.case.title },
+      { label: 'Description:', value: data.case.description || 'N/A' },
+      { label: 'Status:', value: data.case.status.toUpperCase() },
+      { label: 'Created By:', value: data.case.createdBy },
+      { label: 'Created Date:', value: formatTimestamp(data.case.createdAt) },
+      { label: 'Last Updated:', value: formatTimestamp(data.case.updatedAt) }
     ];
 
-    summary.forEach(line => {
-      if (yPosition > pageHeight - 30) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
-      pdf.text(line, margin, yPosition);
-      yPosition += 7;
+    caseDetails.forEach(({ label, value }) => {
+      checkPageBreak();
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(label, margin, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      
+      const labelWidth = pdf.getTextWidth(label);
+      addWrappedText(value, margin + labelWidth + 5, 11, maxWidth - labelWidth - 5);
+      yPosition += 3;
     });
+
+    yPosition += 15;
+
+    // Investigation Statistics
+          checkPageBreak(40);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Investigation Statistics:', margin, yPosition);
+      yPosition += 12;
+
+    pdf.setFont('helvetica', 'normal');
+    const statistics = [
+      `Total Evidence Files: ${data.evidenceFiles.length}`,
+      `Total Records Analyzed: ${data.records.length.toLocaleString()}`,
+      `Anomalies Detected: ${data.anomalies.length}`,
+      `Data Volume: ${formatBytes(data.records.reduce((sum, r) => sum + r.bytesTransferred, 0))}`
+    ];
+
+          statistics.forEach(stat => {
+        checkPageBreak();
+        pdf.text('• ', margin, yPosition);
+        addWrappedText(stat, margin + 8, 9);
+        yPosition += 3;
+      });
 
     yPosition += 15;
   };
 
   // Key Findings
   const addKeyFindings = () => {
-    if (yPosition > pageHeight - 50) {
-      pdf.addPage();
-      yPosition = margin;
-      addWatermark();
-    }
+    checkPageBreak(50);
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Key Findings', margin, yPosition);
     yPosition += 15;
-
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
 
     // Top source IPs
     const sourceIPs = data.records.reduce((acc, record) => {
@@ -172,20 +206,20 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
       .sort(([,a], [,b]) => b - a)
       .slice(0, 5);
 
-    pdf.text('Top Source IPs by Activity:', margin, yPosition);
-    yPosition += 10;
+          pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Top Source IPs by Activity:', margin, yPosition);
+      yPosition += 12;
 
-    topSources.forEach(([ip, count]) => {
-      if (yPosition > pageHeight - 30) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
-      pdf.text(`• ${ip}: ${count} connections`, margin + 10, yPosition);
-      yPosition += 7;
-    });
+          pdf.setFont('helvetica', 'normal');
+      topSources.forEach(([ip, count]) => {
+        checkPageBreak();
+        pdf.text('• ', margin, yPosition);
+        addWrappedText(`${ip}: ${count} connections`, margin + 8, 9);
+        yPosition += 3;
+      });
 
-    yPosition += 10;
+    yPosition += 15;
 
     // Protocol distribution
     const protocols = data.records.reduce((acc, record) => {
@@ -193,46 +227,40 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
       return acc;
     }, {} as Record<string, number>);
 
-    pdf.text('Protocol Distribution:', margin, yPosition);
-    yPosition += 10;
+          checkPageBreak(30);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Protocol Distribution:', margin, yPosition);
+      yPosition += 12;
 
-    Object.entries(protocols).forEach(([protocol, count]) => {
-      if (yPosition > pageHeight - 30) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
-      const percentage = ((count / data.records.length) * 100).toFixed(1);
-      pdf.text(`• ${protocol}: ${count} (${percentage}%)`, margin + 10, yPosition);
-      yPosition += 7;
-    });
+          pdf.setFont('helvetica', 'normal');
+      Object.entries(protocols).forEach(([protocol, count]) => {
+        checkPageBreak();
+        const percentage = ((count / data.records.length) * 100).toFixed(1);
+        pdf.text('• ', margin, yPosition);
+        addWrappedText(`${protocol}: ${count} (${percentage}%)`, margin + 8, 9);
+        yPosition += 3;
+      });
 
-    yPosition += 15;
+    yPosition += 20;
   };
 
   // Anomalies Section
   const addAnomalies = () => {
-    if (yPosition > pageHeight - 50) {
-      pdf.addPage();
-      yPosition = margin;
-      addWatermark();
-    }
+    checkPageBreak(50);
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Detected Anomalies', margin, yPosition);
     yPosition += 15;
 
     if (data.anomalies.length === 0) {
-      pdf.setFontSize(12);
-      pdf.setFont(undefined, 'normal');
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
       pdf.text('No anomalies detected in the analyzed data.', margin, yPosition);
       yPosition += 15;
       return;
     }
-
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
 
     // Group anomalies by rule type
     const anomaliesByRule = data.anomalies.reduce((acc, anomaly) => {
@@ -243,67 +271,67 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
 
     // Special section for late night activity
     if (anomaliesByRule.late_night_activity) {
-      pdf.setFont(undefined, 'bold');
+      checkPageBreak(40);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
       pdf.text('Late Night Activity Detection (00:00-05:00 IST):', margin, yPosition);
-      yPosition += 10;
+      yPosition += 12;
       
-      pdf.setFont(undefined, 'normal');
+      pdf.setFont('helvetica', 'normal');
       const lateNightAnomalies = anomaliesByRule.late_night_activity;
       const totalConnections = lateNightAnomalies.reduce((sum, a) => {
         const match = a.reason.match(/Detected (\d+) connections/);
         return sum + (match ? parseInt(match[1]) : 0);
       }, 0);
-      const totalBytes = lateNightAnomalies.reduce((sum, a) => {
-        const match = a.reason.match(/(\d+(?:\.\d+)? \w+) data transfer/);
-        return sum + (match ? 1 : 0);
-      }, 0);
       
-      pdf.text(`• Total late night connections: ${totalConnections}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`• Entities with late night activity: ${lateNightAnomalies.length}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`• This pattern often indicates automated attacks or suspicious behavior`, margin + 10, yPosition);
-      yPosition += 10;
+      pdf.text('• ', margin, yPosition);
+      addWrappedText(`Total late night connections: ${totalConnections}`, margin + 8, 11);
+      yPosition += 3;
+      
+      pdf.text('• ', margin, yPosition);
+      addWrappedText(`Entities with late night activity: ${lateNightAnomalies.length}`, margin + 8, 11);
+      yPosition += 3;
+      
+      pdf.text('• ', margin, yPosition);
+      addWrappedText('This pattern often indicates automated attacks or suspicious behavior', margin + 8, 11);
+      yPosition += 15;
     }
 
     // Other anomalies
     Object.entries(anomaliesByRule).forEach(([rule, ruleAnomalies]) => {
       if (rule === 'late_night_activity') return; // Already handled above
       
-      if (yPosition > pageHeight - 40) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
-
-      pdf.setFont(undefined, 'bold');
+      checkPageBreak(30);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
       pdf.text(`${rule.replace(/_/g, ' ').toUpperCase()}:`, margin, yPosition);
-      yPosition += 8;
+      yPosition += 12;
 
-      pdf.setFont(undefined, 'normal');
-      ruleAnomalies.slice(0, 5).forEach((anomaly, index) => {
-        if (yPosition > pageHeight - 30) {
-          pdf.addPage();
-          yPosition = margin;
-          addWatermark();
-        }
+      pdf.setFont('helvetica', 'normal');
+      ruleAnomalies.slice(0, 3).forEach((anomaly, index) => {
+        checkPageBreak(25);
 
-        pdf.text(`${index + 1}. ${anomaly.entity} (${anomaly.severity.toUpperCase()})`, margin + 10, yPosition);
-        yPosition += 6;
-        pdf.text(`   Score: ${anomaly.score.toFixed(2)}`, margin + 15, yPosition);
-        yPosition += 6;
-        pdf.text(`   Reason: ${anomaly.reason}`, margin + 15, yPosition);
-        yPosition += 6;
-        pdf.text(`   Detected: ${formatTimestamp(anomaly.timestamp)}`, margin + 15, yPosition);
+        pdf.setFont('helvetica', 'bold');
+        addWrappedText(`${index + 1}. ${anomaly.entity} (${anomaly.severity.toUpperCase()})`, margin + 5, 9);
+        yPosition += 2;
+        
+        pdf.setFont('helvetica', 'normal');
+        addWrappedText(`Score: ${anomaly.score.toFixed(2)}`, margin + 10, 9);
+        yPosition += 2;
+        addWrappedText(`Reason: ${anomaly.reason}`, margin + 10, 9);
+        yPosition += 2;
+        addWrappedText(`Detected: ${formatTimestamp(anomaly.timestamp)}`, margin + 10, 9);
         yPosition += 8;
       });
 
-      if (ruleAnomalies.length > 5) {
-        pdf.text(`   ... and ${ruleAnomalies.length - 5} more anomalies`, margin + 15, yPosition);
-        yPosition += 6;
+      if (ruleAnomalies.length > 3) {
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`... and ${ruleAnomalies.length - 3} more anomalies`, margin + 10, yPosition);
+        yPosition += 5;
       }
       
-      yPosition += 5;
+      yPosition += 10;
     });
 
     yPosition += 10;
@@ -311,76 +339,64 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
 
   // Evidence Files
   const addEvidenceFiles = () => {
-    if (yPosition > pageHeight - 50) {
-      pdf.addPage();
-      yPosition = margin;
-      addWatermark();
-    }
+    checkPageBreak(50);
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Evidence Files', margin, yPosition);
     yPosition += 15;
 
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
-
     data.evidenceFiles.forEach((file, index) => {
-      if (yPosition > pageHeight - 50) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
+      checkPageBreak(35);
 
-      pdf.setFont(undefined, 'bold');
-      pdf.text(`${index + 1}. ${file.filename}`, margin, yPosition);
-      yPosition += 8;
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      addWrappedText(`${index + 1}. ${file.filename}`, margin, 12);
+      yPosition += 5;
 
-      pdf.setFont(undefined, 'normal');
-      pdf.text(`SHA-256: ${file.sha256}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`Size: ${formatBytes(file.size)}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`Operator: ${file.operator.toUpperCase()}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`Records: ${file.recordCount || 0}`, margin + 10, yPosition);
-      yPosition += 6;
-      pdf.text(`Uploaded: ${formatTimestamp(file.uploadedAt)}`, margin + 10, yPosition);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      addWrappedText(`SHA-256: ${file.sha256}`, margin + 10, 9);
+      yPosition += 2;
+      addWrappedText(`Size: ${formatBytes(file.size)}`, margin + 10, 9);
+      yPosition += 2;
+      addWrappedText(`Operator: ${file.operator.toUpperCase()}`, margin + 10, 9);
+      yPosition += 2;
+      addWrappedText(`Records: ${file.recordCount || 0}`, margin + 10, 9);
+      yPosition += 2;
+      addWrappedText(`Uploaded: ${formatTimestamp(file.uploadedAt)}`, margin + 10, 9);
       yPosition += 10;
     });
 
-    yPosition += 10;
+    yPosition += 15;
   };
 
   // Chain of Custody Audit Trail
   const addChainOfCustody = async () => {
-    if (yPosition > pageHeight - 50) {
-      pdf.addPage();
-      yPosition = margin;
-      addWatermark();
-    }
+    checkPageBreak(50);
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Chain of Custody - Audit Trail', margin, yPosition);
     yPosition += 15;
-
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
     
     // Add integrity verification status
     const verification = await globalCoC.verifyChainIntegrity();
-    pdf.setFont(undefined, 'bold');
-    pdf.text(`Chain Integrity Status: ${verification.isValid ? 'VERIFIED' : 'COMPROMISED'}`, margin, yPosition);
-    yPosition += 8;
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    const statusText = `Chain Integrity Status: ${verification.isValid ? 'VERIFIED' : 'COMPROMISED'}`;
+    pdf.text(statusText, margin, yPosition);
+    yPosition += 12;
     
     if (!verification.isValid) {
       pdf.setTextColor(255, 0, 0);
-      pdf.text(`Integrity Errors: ${verification.errors.length}`, margin, yPosition);
-      yPosition += 6;
+      pdf.setFont('helvetica', 'normal');
+      addWrappedText(`Integrity Errors: ${verification.errors.length}`, margin, 11);
+      yPosition += 2;
       verification.errors.slice(0, 3).forEach(error => {
-        pdf.text(`• ${error}`, margin + 10, yPosition);
-        yPosition += 6;
+        pdf.text('• ', margin, yPosition);
+        addWrappedText(error, margin + 8, 10);
+        yPosition += 2;
       });
       pdf.setTextColor(0, 0, 0);
     }
@@ -389,23 +405,19 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
     // Get full audit log
     const fullAuditLog = globalCoC.getFullAuditLog();
     
-    pdf.setFont(undefined, 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.text(`Total Audit Entries: ${fullAuditLog.length}`, margin, yPosition);
-    yPosition += 10;
+    yPosition += 12;
 
-    pdf.setFont(undefined, 'normal');
+    pdf.setFont('helvetica', 'normal');
     pdf.text('Recent Chain of Custody Events:', margin, yPosition);
-    yPosition += 10;
+    yPosition += 12;
 
-    // Show last 10 audit entries
-    const recentEntries = fullAuditLog.slice(-10);
+    // Show last 8 audit entries
+    const recentEntries = fullAuditLog.slice(-8);
     
     recentEntries.forEach((entry, index) => {
-      if (yPosition > pageHeight - 40) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
+      checkPageBreak(30);
 
       const actionLabels: Record<string, string> = {
         'upload': 'Evidence Upload',
@@ -416,61 +428,66 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
         'verify': 'Verification'
       };
 
-      pdf.setFont(undefined, 'bold');
-      pdf.text(`${recentEntries.length - index}. ${formatTimestamp(entry.timestamp)} - ${actionLabels[entry.action] || entry.action.toUpperCase()}`, margin, yPosition);
-      yPosition += 6;
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      const entryTitle = `${recentEntries.length - index}. ${formatTimestamp(entry.timestamp)} - ${actionLabels[entry.action] || entry.action.toUpperCase()}`;
+      addWrappedText(entryTitle, margin, 11);
+      yPosition += 3;
       
-      pdf.setFont(undefined, 'normal');
-      pdf.text(`   Actor: ${entry.actor}`, margin + 10, yPosition);
-      yPosition += 5;
-      pdf.text(`   Subject: ${entry.subject}`, margin + 10, yPosition);
-      yPosition += 5;
-      pdf.text(`   Hash: ${entry.currentHash.slice(0, 32)}...`, margin + 10, yPosition);
-      yPosition += 5;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      addWrappedText(`Actor: ${entry.actor}`, margin + 10, 9);
+      yPosition += 1;
+      addWrappedText(`Subject: ${entry.subject}`, margin + 10, 9);
+      yPosition += 1;
+      addWrappedText(`Hash: ${entry.currentHash.slice(0, 32)}...`, margin + 10, 9);
+      yPosition += 1;
       
       if (entry.metadata.action) {
-        pdf.text(`   Action: ${entry.metadata.action}`, margin + 10, yPosition);
-        yPosition += 5;
+        addWrappedText(`Action: ${entry.metadata.action}`, margin + 10, 9);
+        yPosition += 1;
       }
       
       if (entry.ipAddress) {
-        pdf.text(`   IP: ${entry.ipAddress}`, margin + 10, yPosition);
-        yPosition += 5;
+        addWrappedText(`IP: ${entry.ipAddress}`, margin + 10, 9);
+        yPosition += 1;
       }
       
-      yPosition += 3;
+      yPosition += 5;
     });
 
-    yPosition += 10;
+    yPosition += 15;
     
     // Add BSA 2023 compliance statement
-    pdf.setFont(undefined, 'bold');
+    checkPageBreak(40);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Legal Compliance:', margin, yPosition);
-    yPosition += 8;
+    yPosition += 12;
     
-    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
     const complianceText = [
-      '• Chain of Custody maintained per Bharatiya Sakshya Adhiniyam (BSA) 2023, Section 63',
-      '• Cryptographic integrity verification using SHA-256 hash chaining',
-      '• Tamper-evident audit logging with timestamp verification',
-      '• Digital evidence preservation with immutable audit trail',
-      '• Compliance with Telecommunications Act 2023 and DPDP Act 2023'
+      'Chain of Custody maintained per Bharatiya Sakshya Adhiniyam (BSA) 2023, Section 63',
+      'Cryptographic integrity verification using SHA-256 hash chaining',
+      'Tamper-evident audit logging with timestamp verification',
+      'Digital evidence preservation with immutable audit trail',
+      'Compliance with Telecommunications Act 2023 and DPDP Act 2023'
     ];
     
     complianceText.forEach(text => {
-      if (yPosition > pageHeight - 20) {
-        pdf.addPage();
-        yPosition = margin;
-        addWatermark();
-      }
-      pdf.text(text, margin, yPosition);
-      yPosition += 6;
+      checkPageBreak();
+      pdf.text('• ', margin, yPosition);
+      addWrappedText(text, margin + 8, 10);
+      yPosition += 3;
     });
+    
+    yPosition += 15;
   };
 
   // Generate the report
   addHeader();
-  addSection65B();
+  addSection63S();
   addCaseSummary();
   addKeyFindings();
   addAnomalies();
@@ -496,31 +513,36 @@ export async function generateSecurePDFReport(data: ReportData): Promise<Blob> {
   addWatermark();
   yPosition = margin;
 
-  pdf.setFontSize(16);
-  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
   pdf.text('Report Certification', margin, yPosition);
   yPosition += 20;
 
-  pdf.setFontSize(12);
-  pdf.setFont(undefined, 'normal');
-  pdf.text('This report has been generated by IPDR-Intel+ digital forensics platform.', margin, yPosition);
-  yPosition += 10;
-  pdf.text('All data has been processed with cryptographic integrity verification.', margin, yPosition);
-  yPosition += 10;
-  pdf.text('This document is legally compliant under Section 65B of the Indian Evidence Act.', margin, yPosition);
-  yPosition += 30;
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'normal');
+  addWrappedText('This report has been generated by IPDR-Intel+ digital forensics platform.', margin, 11);
+  yPosition += 5;
+  addWrappedText('All data has been processed with cryptographic integrity verification.', margin, 11);
+  yPosition += 5;
+  addWrappedText('This document is legally compliant under Section 63S of the Indian Evidence Act.', margin, 11);
+  yPosition += 25;
 
-  pdf.setFont(undefined, 'bold');
+  pdf.setFont('helvetica', 'bold');
   pdf.text('Digital Signature Hash:', margin, yPosition);
-  yPosition += 10;
-  pdf.setFont(undefined, 'normal');
+  yPosition += 12;
+  pdf.setFont('helvetica', 'normal');
   
   // Generate a mock signature hash
   const signatureHash = Array.from({ length: 64 }, () => 
     Math.floor(Math.random() * 16).toString(16)
   ).join('');
   
-  pdf.text(signatureHash, margin, yPosition);
+  // Split hash for better readability
+  const hashLines = signatureHash.match(/.{1,32}/g) || [];
+  hashLines.forEach(hashLine => {
+    pdf.text(hashLine, margin, yPosition);
+    yPosition += 12;
+  });
 
   return pdf.output('blob');
 }
@@ -532,6 +554,10 @@ export function downloadPDF(blob: Blob, filename: string) {
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  
+  // Safe removal - check if element is still a child before removing
+  if (document.body.contains(link)) {
+    document.body.removeChild(link);
+  }
   URL.revokeObjectURL(url);
 }

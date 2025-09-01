@@ -6,6 +6,7 @@ import { CreateCaseDialog } from '@/components/cases/create-case-dialog';
 import { IPDRFileUpload } from '@/components/upload/ipdr-file-upload';
 import { WelcomeScreen } from '@/components/home/welcome-screen';
 import { DemoProvider } from '@/components/common/demo-provider';
+import { DemoGuide } from '@/components/demo/demo-guide';
 import NavMenu from '@/components/nav-menu';
 import { useWalkthrough } from '@/components/walkthrough/walkthrough-provider';
 import { Button } from '@/components/ui/button';
@@ -142,39 +143,80 @@ function HomeContent() {
 
         {/* File Upload Section */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Upload className="h-6 w-6 text-gray-700" />
-            <h3 className="text-xl font-semibold text-gray-900">Upload IPDR Files</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Upload className="h-6 w-6 text-gray-700" />
+              <h3 className="text-xl font-semibold text-gray-900">Upload IPDR Files</h3>
+            </div>
+            {records.length > 0 && (
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <span className="text-sm text-green-600 font-medium">
+                  {records.length.toLocaleString()} records processed
+                </span>
+              </div>
+            )}
           </div>
-          <IPDRFileUpload caseId={currentCase.id} />
+          <div data-walkthrough="upload-area" id="try-demo">
+            <IPDRFileUpload caseId={currentCase.id} />
+          </div>
+          
+          {/* Next Steps */}
+          {records.length > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-2">File processed successfully! What's next?</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <Button variant="outline" size="sm" asChild className="justify-start">
+                      <a href="/records">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        View Records
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild className="justify-start">
+                      <a href="/analytics">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Detect Anomalies
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild className="justify-start">
+                      <a href="/graph">
+                        <Network className="h-4 w-4 mr-2" />
+                        Network Graph
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild className="justify-start">
+                      <a href="/reports">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Generate Report
+                      </a>
+                    </Button>
+                  </div>
+                  {!hasSeenWalkthrough && (
+                    <Button 
+                      onClick={startWalkthrough}
+                      variant="link" 
+                      size="sm"
+                      className="mt-2 p-0 h-auto text-blue-600"
+                    >
+                      <BookOpenIcon className="h-4 w-4 mr-1" />
+                      Take a guided tour
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Features Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
-            <BarChart3 className="h-12 w-12 text-blue-500 mx-auto mb-3" />
-            <h4 className="font-semibold text-gray-900 mb-2">Analytics</h4>
-            <p className="text-sm text-gray-600">AI-powered anomaly detection and pattern analysis</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
-            <Network className="h-12 w-12 text-green-500 mx-auto mb-3" />
-            <h4 className="font-semibold text-gray-900 mb-2">Network Graph</h4>
-            <p className="text-sm text-gray-600">Interactive relationship mapping and visualization</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
-            <FileText className="h-12 w-12 text-purple-500 mx-auto mb-3" />
-            <h4 className="font-semibold text-gray-900 mb-2">Legal Reports</h4>
-            <p className="text-sm text-gray-600">Section 65B compliant reports with watermarks</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
-            <Shield className="h-12 w-12 text-orange-500 mx-auto mb-3" />
-            <h4 className="font-semibold text-gray-900 mb-2">Audit Trail</h4>
-            <p className="text-sm text-gray-600">Immutable evidence logging and chain of custody</p>
-          </div>
-        </div>
+        {/* Demo Guide */}
+        <DemoGuide 
+          hasData={records.length > 0}
+          recordCount={records.length}
+          onStartTour={startWalkthrough}
+        />
       </main>
     </div>
   );

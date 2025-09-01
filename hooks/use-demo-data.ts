@@ -9,9 +9,25 @@ export function useDemoData() {
   const store = useAppStore();
   
   const initializeDemoData = useCallback(() => {
+    console.log('Initializing demo data...');
+    console.log('Current store state:', {
+      cases: store.cases.length,
+      records: store.records.length,
+      evidenceFiles: store.evidenceFiles.length
+    });
+    
     // Only initialize if no data exists
     if (store.cases.length === 0) {
+      console.log('No cases found, generating demo data...');
       const demoData = generateFullDemoData();
+      
+      console.log('Demo data generated:', {
+        case: demoData.case,
+        records: demoData.records.length,
+        evidenceFiles: demoData.evidenceFiles.length,
+        anomalies: demoData.anomalies.length,
+        graphData: demoData.graphData
+      });
       
       // Set the demo case as current
       store.setCurrentCase(demoData.case);
@@ -45,11 +61,13 @@ export function useDemoData() {
         timelineData: generateTimelineData(demoData.records)
       });
       
-      console.log('Demo data initialized:', {
+      console.log('Demo data initialized successfully:', {
         records: demoData.records.length,
         anomalies: demoData.anomalies.length,
         files: demoData.evidenceFiles.length
       });
+    } else {
+      console.log('Demo data already exists, skipping initialization');
     }
   }, [store]);
   

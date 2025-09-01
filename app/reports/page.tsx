@@ -48,7 +48,7 @@ function ReportsContent() {
       downloadPDF(pdfBlob, filename);
       
       toast.success('Report generated successfully!', {
-        description: 'Secure PDF with Section 65B certificate downloaded'
+        description: 'Secure PDF with Section 63S certificate downloaded'
       });
     } catch (error) {
       console.error('Report generation failed:', error);
@@ -83,7 +83,7 @@ function ReportsContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Investigation Reports</h1>
-          <p className="text-gray-600">Generate secure, court-ready PDF reports with Section 65B compliance</p>
+          <p className="text-gray-600">Generate secure, court-ready PDF reports with Section 63S compliance</p>
         </div>
 
         {/* Case Overview */}
@@ -185,9 +185,9 @@ function ReportsContent() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-gray-900">Section 65B Certificate</h4>
+                  <h4 className="font-medium text-gray-900">Section 63S Certificate</h4>
                   <p className="text-sm text-gray-600">
-                    Includes mandatory certificate under Section 65B of the Indian Evidence Act, 1872
+                    Includes mandatory certificate under Section 63S of the Indian Evidence Act, 1872
                   </p>
                 </div>
               </div>
@@ -256,7 +256,7 @@ function ReportsContent() {
               <p className="text-sm text-amber-700 mt-1">
                 This report contains sensitive investigative data. Handle according to your organization's 
                 data protection policies. The generated PDF includes cryptographic signatures for 
-                integrity verification and is admissible in Indian courts under Section 65B.
+                integrity verification and is admissible in Indian courts under Section 63S.
               </p>
             </div>
           </div>

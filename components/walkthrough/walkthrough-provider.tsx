@@ -77,7 +77,7 @@ const DEFAULT_WALKTHROUGH_STEPS: WalkthroughStepData[] = [
   {
     id: 'generate-reports',
     title: 'Generate Reports',
-    description: 'Create court-ready PDF reports with Section 65B compliance. Includes digital signatures and audit trails.',
+            description: 'Create court-ready PDF reports with Section 63S compliance. Includes digital signatures and audit trails.',
     target: '[data-walkthrough="generate-reports"]',
     position: 'top',
     component: 'ReportGeneration',

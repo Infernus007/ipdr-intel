@@ -93,7 +93,7 @@ export const DEMO_CONFIG = {
 };
 
 export const LEGAL_COMPLIANCE = {
-  section65B: {
+  section63S: {
     enabled: true,
     certificateRequired: true,
     watermarkRequired: true
@@ -145,7 +145,7 @@ export const DEMO_FEATURES = [
   {
     id: 'reports',
     name: 'Legal Reports',
-    description: 'Section 65B compliant exports',
+    description: 'Section 63S compliant exports',
     icon: 'FileText',
     status: 'active'
   },

@@ -194,7 +194,7 @@ function GraphContent() {
 
         {/* Network Visualization */}
         <div {...walkthroughTarget}>
-          <NetworkVisualization records={records} />
+          <NetworkVisualization />
         </div>
 
         {/* Additional Insights */}

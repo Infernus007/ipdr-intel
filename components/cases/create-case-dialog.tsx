@@ -42,8 +42,11 @@ export function CreateCaseDialog({ onCaseCreated }: CreateCaseDialogProps) {
     // Simulate case creation delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    // Generate a truly unique ID using timestamp + random string
+    const uniqueId = `case_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newCase: Case = {
-      id: `case_${Date.now()}`,
+      id: uniqueId,
       title: formData.title.trim(),
       description: formData.description.trim() || undefined,
       status: 'active',

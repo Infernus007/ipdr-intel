@@ -1,5 +1,7 @@
 'use client';
 
+// No custom properties needed
+
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +75,15 @@ export function HeroSection() {
         display: inline-block;
         opacity: 0;
         margin-right: 0.3em;
+        animation: word-appear 0.8s ease-out forwards;
       }
+      
+      .word[data-delay="0"] { animation-delay: 0s; }
+      .word[data-delay="100"] { animation-delay: 0.1s; }
+      .word[data-delay="200"] { animation-delay: 0.2s; }
+      .word[data-delay="300"] { animation-delay: 0.3s; }
+      .word[data-delay="400"] { animation-delay: 0.4s; }
+      .word[data-delay="500"] { animation-delay: 0.5s; }
       
       .grid-line {
         stroke: rgba(200,180,160,0.1);
@@ -100,19 +110,17 @@ export function HeroSection() {
         background: rgba(200,180,160,0.3);
         border-radius: 50%;
         animation: floating-element 6s ease-in-out infinite;
-        animation-play-state: paused;
+        animation-play-state: running;
+      }
+      
+      .word:hover {
+        text-shadow: 0 0 20px rgba(200, 180, 160, 0.5);
+        transition: text-shadow 0.3s ease;
       }
     `;
     document.head.appendChild(style);
 
-    // Animate words
-    const words = document.querySelectorAll<HTMLElement>('.word');
-    words.forEach((word) => {
-      const delay = parseInt(word.getAttribute('data-delay') || '0', 10);
-      setTimeout(() => {
-        word.style.animation = 'word-appear 0.8s ease-out forwards';
-      }, delay);
-    });
+    // Words will be animated via CSS only - no DOM manipulation
 
     // Mouse gradient
     const gradient = gradientRef.current;
@@ -129,56 +137,23 @@ export function HeroSection() {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseleave', onMouseLeave);
 
-    // Word hover effects
-    words.forEach((word) => {
-      word.addEventListener('mouseenter', () => {
-        word.style.textShadow = '0 0 20px rgba(200, 180, 160, 0.5)';
-      });
-      word.addEventListener('mouseleave', () => {
-        word.style.textShadow = 'none';
-      });
-    });
+    // Word hover effects removed - using CSS only
 
-    // Click ripple effect
-    function onClick(e: MouseEvent) {
-      const ripple = document.createElement('div');
-      ripple.style.position = 'fixed';
-      ripple.style.left = e.clientX + 'px';
-      ripple.style.top = e.clientY + 'px';
-      ripple.style.width = '4px';
-      ripple.style.height = '4px';
-      ripple.style.background = 'rgba(200, 180, 160, 0.6)';
-      ripple.style.borderRadius = '50%';
-      ripple.style.transform = 'translate(-50%, -50%)';
-      ripple.style.pointerEvents = 'none';
-      ripple.style.animation = 'pulse-glow 1s ease-out forwards';
-      document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 1000);
-    }
-    document.addEventListener('click', onClick);
+    // Click ripple effect removed - using CSS only
 
-    // Floating elements on scroll
-    let scrolled = false;
-    function onScroll() {
-      if (!scrolled) {
-        scrolled = true;
-        document
-          .querySelectorAll<HTMLElement>('.floating-element')
-          .forEach((el, index) => {
-            setTimeout(() => {
-              el.style.animationPlayState = 'running';
-            }, index * 200);
-          });
-      }
-    }
-    window.addEventListener('scroll', onScroll);
+    // Floating elements scroll effect removed - using CSS only
 
     return () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseleave', onMouseLeave);
-      document.removeEventListener('click', onClick);
-      window.removeEventListener('scroll', onScroll);
-      document.head.removeChild(style);
+      // Safe cleanup of event listeners
+      if (gradient && document.contains(gradient)) {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseleave', onMouseLeave);
+      }
+      
+      // Safe removal of style element
+      if (style && document.head && document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
     };
   }, []);
 

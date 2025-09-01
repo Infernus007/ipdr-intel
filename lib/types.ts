@@ -1,6 +1,33 @@
 // Core Types for IPDR-Intel+ Demo
 export type TelecomOperator = 'airtel' | 'jio' | 'vodafone' | 'bsnl';
 
+export interface Geolocation {
+  country: string;
+  region: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  isp: string;
+}
+
+export interface PersonMapping {
+  id: string;
+  caseId: string;
+  aParty: string;
+  bParty: string;
+  connectionCount: number;
+  totalDuration: number;
+  totalBytes: number;
+  firstContact: Date;
+  lastContact: Date;
+  protocols: string[];
+  aPartyLocation?: Geolocation;
+  bPartyLocation?: Geolocation;
+  riskScore: number;
+  anomalyFlags: string[];
+}
+
 export interface IPDRRecord {
   id: string;
   caseId: string;
@@ -16,6 +43,8 @@ export interface IPDRRecord {
   sourceFileId: string;
   rawRowHash: string;
   operator: TelecomOperator;
+  aPartyLocation?: Geolocation;
+  bPartyLocation?: Geolocation;
 }
 
 export interface EvidenceFile {

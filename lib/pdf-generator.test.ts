@@ -136,7 +136,7 @@ describe('PDF Generator', () => {
     );
     
     expect(mockInstance.text).toHaveBeenCalledWith(
-      expect.stringContaining('Section 65B Certificate'),
+      expect.stringContaining('Section 63S Certificate'),
       expect.any(Number),
       expect.any(Number)
     );

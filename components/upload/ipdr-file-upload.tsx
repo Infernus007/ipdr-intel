@@ -98,6 +98,18 @@ export function IPDRFileUpload({ caseId, onFilesUploaded }: IPDRFileUploadProps)
             toast.dismiss(progressToast);
           }
           
+          // Show specific error message
+          let errorMessage = 'File processing failed';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          }
+          
+          toast.error(`Failed to process ${file.name}`, {
+            description: errorMessage
+          });
+          
           toast.error(`Failed to process ${file.name}`, {
             description: error instanceof Error ? error.message : 'Please check the file format and try again'
           });
@@ -136,7 +148,10 @@ export function IPDRFileUpload({ caseId, onFilesUploaded }: IPDRFileUploadProps)
     if (name.includes('jio')) return 'jio';
     if (name.includes('vodafone') || name.includes('vi')) return 'vodafone';
     if (name.includes('bsnl')) return 'bsnl';
-    return undefined;
+    
+    // For demo purposes, default to airtel if no operator detected
+    // In production, this would be determined by file content analysis
+    return 'airtel';
   };
 
   const getStatusIcon = (file: UploadFile) => {

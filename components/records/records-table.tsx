@@ -179,6 +179,96 @@ const columns: ColumnDef<IPDRRecord>[] = [
     },
     enableSorting: false,
   },
+  {
+    header: "Location A",
+    accessorKey: "aPartyLocation",
+    cell: ({ row }) => {
+      const record = row.original;
+      const location = record.aPartyLocation;
+      
+      if (!location) {
+        return (
+          <div className="text-sm text-gray-400">
+            <div>No location data</div>
+            <div className="text-xs">IP: {record.aParty}</div>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="text-sm">
+          <div className="font-medium text-blue-600">{location.city}</div>
+          <div className="text-gray-500 text-xs">{location.region}, {location.country}</div>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
+    header: "Location B",
+    accessorKey: "bPartyLocation",
+    cell: ({ row }) => {
+      const record = row.original;
+      const location = record.bPartyLocation;
+      
+      if (!location) {
+        return (
+          <div className="text-sm text-gray-400">
+            <div>No location data</div>
+            <div className="text-xs">IP: {record.bParty}</div>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="text-sm">
+          <div className="font-medium text-green-600">{location.city}</div>
+          <div className="text-gray-500 text-xs">{location.region}, {location.country}</div>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
+    header: "Connection Map",
+    accessorKey: "connectionMap",
+    cell: ({ row }) => {
+      const record = row.original;
+      
+      // Calculate connection strength based on actual duration and bytes
+      const durationMinutes = Math.round(record.duration / 60);
+      const bytesMB = Math.round(record.bytesTransferred / 1024 / 1024);
+      
+      // Simple connection strength indicator based on duration
+      let strengthLabel = 'Low';
+      let strengthColor = 'bg-blue-100 text-blue-800';
+      
+      if (record.duration > 300) { // > 5 minutes
+        strengthLabel = 'High';
+        strengthColor = 'bg-red-100 text-red-800';
+      } else if (record.duration > 60) { // > 1 minute
+        strengthLabel = 'Medium';
+        strengthColor = 'bg-orange-100 text-orange-800';
+      }
+      
+      return (
+        <div className="text-sm">
+          <div className="flex items-center space-x-2">
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${strengthColor}`}>
+              {strengthLabel}
+            </div>
+            <div className="text-gray-500 text-xs">
+              {durationMinutes}m
+            </div>
+          </div>
+          <div className="text-xs text-gray-400 mt-1">
+            {bytesMB} MB
+          </div>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
 ];
 
 export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) {
@@ -222,16 +312,7 @@ export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) 
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
     enableSortingRemoval: false,
-    // Performance optimizations for large datasets
-    manualPagination: true,
-    pageCount: pagination.totalPages,
-    onPaginationChange: (updater) => {
-      if (typeof updater === 'function') {
-        const newState = updater({ pageIndex: pagination.currentPage - 1, pageSize: pagination.pageSize });
-        setPage(newState.pageIndex + 1);
-        setPageSize(newState.pageSize);
-      }
-    },
+    // Let the store handle pagination instead of manual pagination
   });
 
   // Enhanced virtualization and pagination logic
@@ -252,7 +333,10 @@ export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) 
         setIsLoading(false);
       }
     } else {
-      setVirtualizedRecords(records);
+      // For smaller datasets, show all records but respect pagination
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      setVirtualizedRecords(records.slice(startIndex, endIndex));
     }
   }, [records, getRecordsForPage, optimizeMemory]);
 
@@ -269,7 +353,7 @@ export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) 
   }, [records, pagination.pageSize, loadPageData]);
 
   // Notify parent of selection changes
-  useMemo(() => {
+  useEffect(() => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     const selectedRecords = selectedRows.map(row => row.original);
     onSelectionChange?.(selectedRecords);
@@ -299,6 +383,53 @@ export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) 
         </div>
       </div>
 
+      {/* Mapping Statistics */}
+      {records.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Connection Mapping Overview
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {new Set(records.map(r => r.aParty)).size}
+              </div>
+              <div className="text-gray-600">Unique Source IPs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {new Set(records.map(r => r.bParty)).size}
+              </div>
+              <div className="text-gray-600">Unique Destination IPs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {new Set(records.map(r => `${r.aParty}-${r.bParty}`)).size}
+              </div>
+              <div className="text-gray-600">Unique Connections</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {new Set(records.map(r => r.operator)).size}
+              </div>
+              <div className="text-gray-600">Telecom Operators</div>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-600">
+              <strong>Data Coverage:</strong> {records.length.toLocaleString()} records from {new Set(records.map(r => r.operator)).size} telecom operators
+              {records.some(r => r.aPartyLocation || r.bPartyLocation) && (
+                <span> • Location data available for some records</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Stats and Performance Indicators */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex items-center gap-4">
@@ -327,7 +458,12 @@ export function RecordsTable({ records, onSelectionChange }: RecordsTableProps) 
           <span className="text-xs">Page size:</span>
           <Select
             value={pagination.pageSize.toString()}
-            onValueChange={(value) => setPageSize(parseInt(value))}
+            onValueChange={(value) => {
+              const newSize = parseInt(value);
+              setPageSize(newSize);
+              // Reset to first page when changing page size
+              setPage(1);
+            }}
           >
             <SelectTrigger className="h-8 w-20">
               <SelectValue />

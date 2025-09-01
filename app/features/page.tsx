@@ -157,7 +157,7 @@ function FeaturesContent() {
           
           <div className="flex flex-wrap justify-center gap-4">
             <Button asChild size="lg">
-              <Link href="/upload">
+              <Link href="/#try-demo">
                 <FileText className="h-5 w-5 mr-2" />
                 Try Demo
               </Link>

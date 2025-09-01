@@ -164,16 +164,39 @@ export const useAppStore = create<AppStore>()(
         // Actions
         setCurrentCase: (caseItem) => set({ currentCase: caseItem }),
         
-        addCase: (caseItem) => set((state) => ({ 
-          cases: [...state.cases, caseItem] 
-        })),
+        addCase: (caseItem) => set((state) => {
+          // Check if case with same ID already exists
+          const existingCaseIndex = state.cases.findIndex(c => c.id === caseItem.id);
+          
+          if (existingCaseIndex !== -1) {
+            // Update existing case instead of adding duplicate
+            const updatedCases = [...state.cases];
+            updatedCases[existingCaseIndex] = { ...caseItem, updatedAt: new Date() };
+            return { 
+              cases: updatedCases,
+              currentCase: state.currentCase?.id === caseItem.id ? caseItem : state.currentCase
+            };
+          } else {
+            // Add new case
+            return { 
+              cases: [...state.cases, caseItem],
+              // Only set as current case if no current case exists
+              currentCase: state.currentCase || caseItem
+            };
+          }
+        }),
         
-        updateCase: (id, updates) => set((state) => ({
-          cases: state.cases.map(c => c.id === id ? { ...c, ...updates } : c),
-          currentCase: state.currentCase?.id === id 
-            ? { ...state.currentCase, ...updates } 
-            : state.currentCase
-        })),
+        updateCase: (id, updates) => set((state) => {
+          const updatedCases = state.cases.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c);
+          const updatedCurrentCase = state.currentCase?.id === id 
+            ? { ...state.currentCase, ...updates, updatedAt: new Date() } 
+            : state.currentCase;
+          
+          return {
+            cases: updatedCases,
+            currentCase: updatedCurrentCase
+          };
+        }),
         
         addEvidenceFile: (file) => set((state) => ({
           evidenceFiles: [...state.evidenceFiles, file]
@@ -577,8 +600,47 @@ export const useAppStore = create<AppStore>()(
         },
         
         generateMockData: () => {
-          // This will be implemented with mock data generation
           console.log('Generating mock data...');
+          const { generateFullDemoData } = require('./mock-data');
+          const demoData = generateFullDemoData();
+          
+          // Set the demo case as current
+          get().setCurrentCase(demoData.case);
+          get().addCase(demoData.case);
+          
+          // Add evidence files
+          demoData.evidenceFiles.forEach((file: any) => {
+            get().addEvidenceFile(file);
+          });
+          
+          // Add records
+          get().setRecords(demoData.records);
+          
+          // Add anomalies
+          get().setAnomalies(demoData.anomalies);
+          
+          // Add watchlist items
+          demoData.watchlist.forEach((item: any) => {
+            get().addWatchlistItem(item);
+          });
+          
+          // Set graph data
+          get().setGraphData(demoData.graphData);
+          
+          // Update analytics
+          get().updateAnalytics({
+            totalRecords: demoData.records.length,
+            totalCases: 1,
+            totalAnomalies: demoData.anomalies.length,
+            operatorBreakdown: calculateOperatorBreakdown(demoData.records),
+            timelineData: generateTimelineData(demoData.records)
+          });
+          
+          console.log('Mock data generated successfully:', {
+            records: demoData.records.length,
+            anomalies: demoData.anomalies.length,
+            files: demoData.evidenceFiles.length
+          });
         },
         
         reset: () => set({
@@ -609,6 +671,41 @@ export const useAppStore = create<AppStore>()(
     { name: 'ipdr-intel-store' }
   )
 );
+
+// Helper functions
+function calculateOperatorBreakdown(records: IPDRRecord[]) {
+  const breakdown = {
+    airtel: 0,
+    jio: 0,
+    vodafone: 0,
+    bsnl: 0
+  };
+  
+  records.forEach(record => {
+    if (record.operator in breakdown) {
+      breakdown[record.operator as keyof typeof breakdown]++;
+    }
+  });
+  
+  return breakdown;
+}
+
+function generateTimelineData(records: IPDRRecord[]) {
+  const timelineMap = new Map();
+  
+  records.forEach(record => {
+    const date = new Date(record.startTimestamp).toISOString().split('T')[0];
+    
+    if (!timelineMap.has(date)) {
+      timelineMap.set(date, { date, records: 0, anomalies: 0 });
+    }
+    
+    timelineMap.get(date).records++;
+  });
+  
+  return Array.from(timelineMap.values())
+    .sort((a: any, b: any) => a.date.localeCompare(b.date));
+}
 
 // Helper function to generate mock records
 function generateMockRecords(fileId: string, count: number): IPDRRecord[] {

@@ -16,6 +16,16 @@ export async function sha256HexOfString(input: string): Promise<string> {
   return sha256Hex(enc.encode(input).buffer);
 }
 
+// Helper function to safely convert ArrayBufferLike to ArrayBuffer
+function ensureArrayBuffer(buffer: ArrayBufferLike): ArrayBuffer {
+  if (buffer instanceof ArrayBuffer) {
+    return buffer;
+  }
+  // For SharedArrayBuffer, we need to create a copy
+  const uint8Array = new Uint8Array(buffer);
+  return uint8Array.slice().buffer;
+}
+
 // Detect delimiter: tab or comma (fallback comma)
 export function detectDelimiter(headerLine: string): ',' | '\t' {
   const tabCount = (headerLine.match(/\t/g) || []).length;
@@ -121,25 +131,54 @@ export async function normalizeAirtelRows(
   operator: TelecomOperator
 ): Promise<IPDRRecord[]> {
   const records: IPDRRecord[] = [];
+  
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    // Expected headers from sample
-    const sourceIP = r['SourceIP'] || r['SrcIP'] || r['src_ip'] || '';
-    const destIP = r['DestinationIP'] || r['DestIP'] || r['dst_ip'] || '';
-    const sourcePort = r['SourcePort'] || r['SrcPort'] || r['src_port'] || '';
-    const destPort = r['DestinationPort'] || r['DstPort'] || r['dst_port'] || '';
-    const protocol = (r['Protocol'] || '').toUpperCase();
-    const startStr = r['StartTime'] || r['Start'] || '';
-    const endStr = r['EndTime'] || r['End'] || '';
-    const bytesStr = r['Bytes'] || r['Octets'] || '0';
+    
+    // Enhanced header detection for various CSV formats
+    const sourceIP = r['SourceIP'] || r['SrcIP'] || r['src_ip'] || r['Source_IP'] || r['Source IP'] || r['A_Party'] || r['A_Party_IP'] || '';
+    const destIP = r['DestinationIP'] || r['DestIP'] || r['dst_ip'] || r['Destination_IP'] || r['Destination IP'] || r['B_Party'] || r['B_Party_IP'] || '';
+    const sourcePort = r['SourcePort'] || r['SrcPort'] || r['src_port'] || r['Source_Port'] || r['Source Port'] || r['A_Party_Port'] || '';
+    const destPort = r['DestinationPort'] || r['DstPort'] || r['dst_port'] || r['Destination_Port'] || r['Destination Port'] || r['B_Party_Port'] || '';
+    const protocol = (r['Protocol'] || r['Protocol_Type'] || r['Connection_Type'] || '').toUpperCase();
+    const startStr = r['StartTime'] || r['Start'] || r['Start_Time'] || r['Connection_Start'] || r['Session_Start'] || '';
+    const endStr = r['EndTime'] || r['End'] || r['End_Time'] || r['Connection_End'] || r['Session_End'] || '';
+    const bytesStr = r['Bytes'] || r['Octets'] || r['Data_Volume'] || r['Bytes_Transferred'] || r['Total_Bytes'] || '0';
+    
+    // Additional fields that might be available
+    const subscriberID = r['SubscriberID'] || r['Subscriber_ID'] || r['MSISDN'] || r['Phone_Number'] || r['User_ID'] || '';
+    const imsi = r['IMSI'] || r['IMSI_Number'] || '';
+    const imei = r['IMEI'] || r['IMEI_Number'] || '';
+    const apn = r['APN'] || r['Access_Point_Name'] || '';
+    const cellID = r['CellID'] || r['Cell_ID'] || r['Cell_Tower'] || '';
+    const lac = r['LAC'] || r['Location_Area_Code'] || '';
 
-    // Parse dates as local then keep Date objects (store UTC internally by Date semantics)
-    const start = new Date(startStr.replace(/\//g, '-'));
-    const end = new Date(endStr.replace(/\//g, '-'));
+    // Skip invalid records
+    if (!sourceIP || !destIP || !startStr || !endStr) {
+      console.warn(`Skipping invalid record at row ${i + 1}:`, r);
+      continue;
+    }
+
+    // Enhanced date parsing with multiple format support
+    let start: Date, end: Date;
+    try {
+      // Try multiple date formats
+      start = parseDateString(startStr);
+      end = parseDateString(endStr);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.warn(`Invalid date format at row ${i + 1}:`, { startStr, endStr });
+        continue;
+      }
+    } catch (error) {
+      console.warn(`Date parsing failed at row ${i + 1}:`, error);
+      continue;
+    }
+    
     const duration = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
-    const bytes = Number(bytesStr) || 0;
+    const bytes = parseInt(bytesStr) || 0;
 
-    // Row hash from canonical string
+    // Enhanced row hash with more fields
     const canonical = [
       sourceIP,
       sourcePort,
@@ -148,9 +187,20 @@ export async function normalizeAirtelRows(
       protocol,
       start.toISOString(),
       end.toISOString(),
-      String(bytes)
+      String(bytes),
+      subscriberID,
+      imsi,
+      imei
     ].join('|');
     const rawRowHash = await sha256HexOfString(canonical);
+
+    // Try to extract location data if available
+    let aPartyLocation, bPartyLocation;
+    if (cellID && lac) {
+      // If we have cell tower data, we could potentially map to approximate location
+      // For now, we'll just note that we have this data
+      console.log(`Cell tower data available: CellID=${cellID}, LAC=${lac}`);
+    }
 
     records.push({
       id: `rec_${fileId}_${i}`,
@@ -166,18 +216,75 @@ export async function normalizeAirtelRows(
       bytesTransferred: bytes,
       sourceFileId: fileId,
       rawRowHash,
-      operator
+      operator,
+      aPartyLocation,
+      bPartyLocation
     });
   }
+  
+  console.log(`Processed ${records.length} valid records from ${rows.length} total rows`);
   return records;
+}
+
+// Enhanced date parsing function
+function parseDateString(dateStr: string): Date {
+  // Remove any quotes and trim
+  const cleanStr = dateStr.replace(/['"]/g, '').trim();
+  
+  // Try multiple date formats
+  const formats = [
+    // ISO format
+    (str: string) => new Date(str),
+    // DD/MM/YYYY HH:MM:SS
+    (str: string) => {
+      const match = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+      if (match) {
+        const [, day, month, year, hour, minute, second] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+      }
+      throw new Error('Format not matched');
+    },
+    // DD-MM-YYYY HH:MM:SS
+    (str: string) => {
+      const match = str.match(/(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+      if (match) {
+        const [, day, month, year, hour, minute, second] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+      }
+      throw new Error('Format not matched');
+    },
+    // YYYY-MM-DD HH:MM:SS
+    (str: string) => {
+      const match = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+      if (match) {
+        const [, year, month, day, hour, minute, second] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+      }
+      throw new Error('Format not matched');
+    }
+  ];
+  
+  for (const format of formats) {
+    try {
+      const date = format(cleanStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    } catch (error) {
+      // Continue to next format
+    }
+  }
+  
+  // If all formats fail, throw error
+  throw new Error(`Unable to parse date: ${dateStr}`);
 }
 
 async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   // Use native arrayBuffer if available
-  // @ts-ignore
   if (typeof (blob as any).arrayBuffer === 'function') {
-    // @ts-ignore
-    return (blob as any).arrayBuffer();
+    const result = await (blob as any).arrayBuffer();
+    // Ensure we return ArrayBuffer, not SharedArrayBuffer
+    return ensureArrayBuffer(result);
   }
   // Fallback to FileReader (jsdom compatibility)
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -242,11 +349,35 @@ export async function processAirtelFile(
   
   // For small files (< 50MB), use original method
   if (file.size < 50 * 1024 * 1024) {
+    console.log('Processing small file:', file.name, 'Size:', file.size);
+    
     const arrayBuf = await blobToArrayBuffer(file);
-    const sha256 = await sha256Hex(arrayBuf);
+    console.log('ArrayBuffer created, size:', arrayBuf.byteLength);
+    
+    const sha256 = await sha256Hex(ensureArrayBuffer(arrayBuf));
+    console.log('SHA256 calculated:', sha256.slice(0, 8) + '...');
+    
     const text = new TextDecoder().decode(arrayBuf);
+    console.log('Text decoded, length:', text.length, 'First 200 chars:', text.substring(0, 200));
+    
     const rows = parseFileContent(text, file.name);
+    console.log('Rows parsed:', rows.length, 'Headers:', Object.keys(rows[0] || {}));
+    
+    // Validate that we have the expected headers for Airtel IPDR format
+    if (rows.length === 0) {
+      throw new Error('No data rows found in the file. Please ensure the file contains valid IPDR data.');
+    }
+    
+    const firstRow = rows[0];
+    const requiredHeaders = ['SourceIP', 'DestinationIP', 'Protocol', 'StartTime', 'EndTime'];
+    const missingHeaders = requiredHeaders.filter(header => !firstRow[header]);
+    
+    if (missingHeaders.length > 0) {
+      throw new Error(`Missing required headers: ${missingHeaders.join(', ')}. Expected format: SubscriberID, SourceIP, SourcePort, DestinationIP, DestinationPort, Protocol, StartTime, EndTime, Bytes`);
+    }
+    
     const records = await normalizeAirtelRows(rows, caseId, fileId, 'airtel');
+    console.log('Records normalized:', records.length);
     
     // Log parsing completion
     await globalCoC.addAuditEntry(
@@ -409,7 +540,7 @@ async function processLargeAirtelFile(
       offset += chunk.byteLength;
     }
     
-    const sha256 = await sha256Hex(totalBuffer);
+    const sha256 = await sha256Hex(ensureArrayBuffer(totalBuffer));
     
     // Log parsing completion for large files
     if (cocData) {
@@ -514,22 +645,33 @@ async function createOptimizedRecord(
   index: number
 ): Promise<IPDRRecord | null> {
   try {
-    const sourceIP = row['SourceIP'] || row['SrcIP'] || row['src_ip'] || '';
-    const destIP = row['DestinationIP'] || row['DestIP'] || row['dst_ip'] || '';
-    const sourcePort = row['SourcePort'] || row['SrcPort'] || row['src_port'] || '';
-    const destPort = row['DestinationPort'] || row['DstPort'] || row['dst_port'] || '';
-    const protocol = (row['Protocol'] || '').toUpperCase();
-    const startStr = row['StartTime'] || row['Start'] || '';
-    const endStr = row['EndTime'] || row['End'] || '';
-    const bytesStr = row['Bytes'] || row['Octets'] || '0';
+    // Enhanced header detection for various CSV formats
+    const sourceIP = row['SourceIP'] || row['SrcIP'] || row['src_ip'] || row['Source_IP'] || row['Source IP'] || row['A_Party'] || row['A_Party_IP'] || '';
+    const destIP = row['DestinationIP'] || row['DestIP'] || row['dst_ip'] || row['Destination_IP'] || row['Destination IP'] || row['B_Party'] || row['B_Party_IP'] || '';
+    const sourcePort = row['SourcePort'] || row['SrcPort'] || row['src_port'] || row['Source_Port'] || row['Source Port'] || row['A_Party_Port'] || '';
+    const destPort = row['DestinationPort'] || row['DstPort'] || row['dst_port'] || row['Destination_Port'] || row['Destination Port'] || row['B_Party_Port'] || '';
+    const protocol = (row['Protocol'] || row['Protocol_Type'] || row['Connection_Type'] || '').toUpperCase();
+    const startStr = row['StartTime'] || row['Start'] || row['Start_Time'] || row['Connection_Start'] || row['Session_Start'] || '';
+    const endStr = row['EndTime'] || row['End'] || row['End_Time'] || row['Connection_End'] || row['Session_End'] || '';
+    const bytesStr = row['Bytes'] || row['Octets'] || row['Data_Volume'] || row['Bytes_Transferred'] || row['Total_Bytes'] || '0';
 
-    if (!sourceIP || !destIP) {
+    if (!sourceIP || !destIP || !startStr || !endStr) {
       return null; // Skip invalid records
     }
 
-    // Optimized date parsing
-    const start = new Date(startStr.replace(/\//g, '-'));
-    const end = new Date(endStr.replace(/\//g, '-'));
+    // Enhanced date parsing
+    let start: Date, end: Date;
+    try {
+      start = parseDateString(startStr);
+      end = parseDateString(endStr);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return null;
+      }
+    } catch (error) {
+      return null;
+    }
+    
     const duration = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
     const bytes = parseInt(bytesStr) || 0;
 
