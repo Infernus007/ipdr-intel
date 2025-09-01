@@ -69,6 +69,7 @@ interface AppStore {
   setPageSize: (size: number) => void;
   getRecordsForPage: (page: number, size: number) => IPDRRecord[];
   getFilteredRecords: (filters: FilterState) => IPDRRecord[];
+  getAdvancedFilteredRecords: (filters: any) => IPDRRecord[];
   optimizeMemory: () => void;
   clearMemoryCache: () => void;
   
@@ -344,6 +345,155 @@ export const useAppStore = create<AppStore>()(
               if (filters.dateRange.start && recordDate < filters.dateRange.start) return false;
               if (filters.dateRange.end && recordDate > filters.dateRange.end) return false;
               return true;
+            });
+          }
+          
+          return filtered;
+        },
+
+        // Advanced search with Wireshark-style queries
+        getAdvancedFilteredRecords: (advancedFilters) => {
+          const state = get();
+          let filtered = state.records;
+          
+          // Global search across all fields
+          if (advancedFilters.globalSearch) {
+            const searchLower = advancedFilters.globalSearch.toLowerCase();
+            filtered = filtered.filter(record => 
+              record.aParty.toLowerCase().includes(searchLower) ||
+              record.bParty.toLowerCase().includes(searchLower) ||
+              record.protocol.toLowerCase().includes(searchLower) ||
+              record.operator.toLowerCase().includes(searchLower) ||
+              record.aPort?.toLowerCase().includes(searchLower) ||
+              record.bPort?.toLowerCase().includes(searchLower) ||
+              record.id.toLowerCase().includes(searchLower)
+            );
+          }
+          
+          // Date range filter
+          if (advancedFilters.dateRange.start || advancedFilters.dateRange.end) {
+            filtered = filtered.filter(record => {
+              const recordDate = record.startTimestamp;
+              if (advancedFilters.dateRange.start && recordDate < advancedFilters.dateRange.start) return false;
+              if (advancedFilters.dateRange.end && recordDate > advancedFilters.dateRange.end) return false;
+              return true;
+            });
+          }
+          
+          // Source IP filter
+          if (advancedFilters.sourceIP) {
+            filtered = filtered.filter(record => 
+              record.aParty.includes(advancedFilters.sourceIP)
+            );
+          }
+          
+          // Destination IP filter
+          if (advancedFilters.destinationIP) {
+            filtered = filtered.filter(record => 
+              record.bParty.includes(advancedFilters.destinationIP)
+            );
+          }
+          
+          // Subscriber ID filter (search in record ID or A-party)
+          if (advancedFilters.subscriberID) {
+            filtered = filtered.filter(record => 
+              record.id.includes(advancedFilters.subscriberID) ||
+              record.aParty.includes(advancedFilters.subscriberID)
+            );
+          }
+          
+          // Protocol filter
+          if (advancedFilters.protocol.length > 0) {
+            filtered = filtered.filter(record => 
+              advancedFilters.protocol.includes(record.protocol)
+            );
+          }
+          
+          // Operator filter
+          if (advancedFilters.operator.length > 0) {
+            filtered = filtered.filter(record => 
+              advancedFilters.operator.includes(record.operator)
+            );
+          }
+          
+          // Port range filter
+          if (advancedFilters.portRange.min !== null || advancedFilters.portRange.max !== null) {
+            filtered = filtered.filter(record => {
+              const srcPort = record.aPort ? parseInt(record.aPort) : 0;
+              const dstPort = record.bPort ? parseInt(record.bPort) : 0;
+              const minPort = advancedFilters.portRange.min || 0;
+              const maxPort = advancedFilters.portRange.max || 65535;
+              return (srcPort >= minPort && srcPort <= maxPort) || 
+                     (dstPort >= minPort && dstPort <= maxPort);
+            });
+          }
+          
+          // Bytes range filter
+          if (advancedFilters.bytesRange.min !== null || advancedFilters.bytesRange.max !== null) {
+            filtered = filtered.filter(record => {
+              const bytes = record.bytesTransferred;
+              const minBytes = advancedFilters.bytesRange.min || 0;
+              const maxBytes = advancedFilters.bytesRange.max || Infinity;
+              return bytes >= minBytes && bytes <= maxBytes;
+            });
+          }
+          
+          // Duration range filter
+          if (advancedFilters.durationRange.min !== null || advancedFilters.durationRange.max !== null) {
+            filtered = filtered.filter(record => {
+              const duration = record.duration;
+              const minDuration = advancedFilters.durationRange.min || 0;
+              const maxDuration = advancedFilters.durationRange.max || Infinity;
+              return duration >= minDuration && duration <= maxDuration;
+            });
+          }
+          
+          // Wireshark-style query parsing
+          if (advancedFilters.wiresharkQuery) {
+            const query = advancedFilters.wiresharkQuery.toLowerCase();
+            filtered = filtered.filter(record => {
+              // Parse simple Wireshark expressions
+              if (query.includes('ip.src')) {
+                const match = query.match(/ip\.src\s*==\s*([^\s]+)/);
+                if (match) {
+                  const ip = match[1].replace(/"/g, '');
+                  return record.aParty.includes(ip);
+                }
+              }
+              
+              if (query.includes('ip.dst')) {
+                const match = query.match(/ip\.dst\s*==\s*([^\s]+)/);
+                if (match) {
+                  const ip = match[1].replace(/"/g, '');
+                  return record.bParty.includes(ip);
+                }
+              }
+              
+              if (query.includes('tcp.port')) {
+                const match = query.match(/tcp\.port\s*==\s*(\d+)/);
+                if (match) {
+                  const port = parseInt(match[1]);
+                  const srcPort = record.aPort ? parseInt(record.aPort) : 0;
+                  const dstPort = record.bPort ? parseInt(record.bPort) : 0;
+                  return srcPort === port || dstPort === port;
+                }
+              }
+              
+              if (query.includes('udp.port')) {
+                const match = query.match(/udp\.port\s*==\s*(\d+)/);
+                if (match) {
+                  const port = parseInt(match[1]);
+                  const srcPort = record.aPort ? parseInt(record.aPort) : 0;
+                  const dstPort = record.bPort ? parseInt(record.bPort) : 0;
+                  return (record.protocol === 'UDP') && 
+                         (srcPort === port || dstPort === port);
+                }
+              }
+              
+              // Default: treat as global search
+              return record.aParty.toLowerCase().includes(query) ||
+                     record.bParty.toLowerCase().includes(query) ||
+                     record.protocol.toLowerCase().includes(query);
             });
           }
           

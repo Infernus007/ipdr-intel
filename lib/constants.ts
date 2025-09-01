@@ -5,27 +5,29 @@ export const TELECOM_OPERATORS: Record<TelecomOperator, { name: string; color: s
   airtel: {
     name: 'Bharti Airtel',
     color: '#E31E24',
-    formats: ['CSV', 'Excel']
+    formats: ['CSV', 'TSV', 'JSON', 'Excel']
   },
   jio: {
     name: 'Reliance Jio',
     color: '#0066CC',
-    formats: ['CSV', 'XML']
+    formats: ['CSV', 'TSV', 'JSON', 'XML']
   },
   vodafone: {
     name: 'Vodafone Idea',
     color: '#E60000',
-    formats: ['CSV', 'TXT']
+    formats: ['CSV', 'TSV', 'JSON', 'TXT']
   },
   bsnl: {
     name: 'BSNL',
     color: '#FF6600',
-    formats: ['CSV', 'DAT']
+    formats: ['CSV', 'TSV', 'JSON', 'DAT']
   }
 };
 
 export const SUPPORTED_FILE_TYPES = [
   '.csv',
+  '.tsv',
+  '.json',
   '.xlsx',
   '.xls',
   '.txt',

@@ -38,7 +38,7 @@ export function formatBytes(bytes: number): string {
 }
 
 export function useFileUpload({
-  accept = '.csv,.xlsx,.xls,.txt,.dat,.xml,.zip',
+  accept = '.csv,.xlsx,.xls,.txt,.dat,.xml,.zip,.json',
   maxSize = 100 * 1024 * 1024, // 100MB
   multiple = false,
   maxFiles = 5,

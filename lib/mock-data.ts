@@ -178,75 +178,91 @@ export function generateDemoWatchlist(caseId: string): WatchlistItem[] {
   ];
 }
 
+// Optimized graph data generation with memoization
+const graphDataCache = new Map<string, GraphData>();
+
 export function generateGraphData(records: IPDRRecord[]): GraphData {
-  const nodeMap = new Map<string, GraphNode>();
-  const edges: GraphEdge[] = [];
-  
-  // Create nodes from unique parties
-  records.forEach(record => {
-    if (!nodeMap.has(record.aParty)) {
-      nodeMap.set(record.aParty, {
-        id: record.aParty,
-        label: record.aParty,
-        type: 'phone',
-        metadata: { operator: record.operator },
-        size: 1,
-        color: getOperatorColor(record.operator)
-      });
-    }
+  // Create cache key based on record content
+  const cacheKey = records.length > 0 
+    ? `${records.length}-${records[0]?.id}-${records[records.length - 1]?.id}`
+    : 'empty';
     
-    if (!nodeMap.has(record.bParty)) {
-      nodeMap.set(record.bParty, {
-        id: record.bParty,
-        label: record.bParty,
-        type: 'phone',
-        metadata: { operator: record.operator },
-        size: 1,
-        color: getOperatorColor(record.operator)
-      });
-    }
-  });
-  
-  // Create edges from records
+  if (graphDataCache.has(cacheKey)) {
+    return graphDataCache.get(cacheKey)!;
+  }
+
+  const nodeMap = new Map<string, GraphNode>();
   const edgeMap = new Map<string, GraphEdge>();
   
+  // Process records efficiently
   records.forEach(record => {
-    const edgeKey = `${record.aParty}-${record.bParty}`;
-    const reverseKey = `${record.bParty}-${record.aParty}`;
+    const { aParty, bParty, operator, protocol, startTimestamp, duration, bytesTransferred } = record;
+    
+    // Create or update nodes
+    [aParty, bParty].forEach(party => {
+      if (!nodeMap.has(party)) {
+        nodeMap.set(party, {
+          id: party,
+          label: party,
+          type: party.includes('.') ? 'ip' : 'phone', // Better type detection
+          metadata: { operator },
+          size: 1,
+          color: getOperatorColor(operator)
+        });
+      }
+    });
+    
+    // Create or update edges (bidirectional)
+    const edgeKey = aParty < bParty ? `${aParty}-${bParty}` : `${bParty}-${aParty}`;
     
     if (edgeMap.has(edgeKey)) {
-      edgeMap.get(edgeKey)!.weight += 1;
-    } else if (edgeMap.has(reverseKey)) {
-      edgeMap.get(reverseKey)!.weight += 1;
+      const edge = edgeMap.get(edgeKey)!;
+      edge.weight += 1;
+      edge.bytes = (edge.bytes || 0) + bytesTransferred;
+      edge.duration = (edge.duration || 0) + duration;
     } else {
       edgeMap.set(edgeKey, {
-        id: `edge_${edgeKey}_${Date.now()}`,
-        source: record.aParty,
-        target: record.bParty,
+        id: `edge_${edgeKey}`,
+        source: aParty,
+        target: bParty,
         weight: 1,
-        type: getConnectionType(record.protocol),
-        timestamp: record.startTimestamp,
-        duration: record.duration,
-        bytes: record.bytesTransferred
+        type: getConnectionType(protocol),
+        timestamp: startTimestamp,
+        duration,
+        bytes: bytesTransferred
       });
     }
   });
   
-  // Update node sizes based on connection count
-  nodeMap.forEach(node => {
-    let connectionCount = 0;
-    edgeMap.forEach(edge => {
-      if (edge.source === node.id || edge.target === node.id) {
-        connectionCount += edge.weight;
-      }
-    });
-    node.size = Math.max(5, Math.min(50, connectionCount * 2));
+  // Update node sizes based on connection strength
+  const connectionCounts = new Map<string, number>();
+  edgeMap.forEach(edge => {
+    connectionCounts.set(edge.source, (connectionCounts.get(edge.source) || 0) + edge.weight);
+    connectionCounts.set(edge.target, (connectionCounts.get(edge.target) || 0) + edge.weight);
   });
   
-  return {
+  nodeMap.forEach(node => {
+    const connectionCount = connectionCounts.get(node.id) || 0;
+    node.size = Math.max(8, Math.min(40, 8 + connectionCount * 3));
+  });
+  
+  const result = {
     nodes: Array.from(nodeMap.values()),
     edges: Array.from(edgeMap.values())
   };
+  
+  // Cache result for performance
+  graphDataCache.set(cacheKey, result);
+  
+  // Limit cache size to prevent memory issues
+  if (graphDataCache.size > 10) {
+    const firstKey = graphDataCache.keys().next().value;
+    if (firstKey) {
+      graphDataCache.delete(firstKey);
+    }
+  }
+  
+  return result;
 }
 
 export function generateDemoStats(): DemoStats {

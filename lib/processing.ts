@@ -42,6 +42,77 @@ export function parseDelimited(text: string): Array<Record<string, string>> {
   return rows;
 }
 
+// Parse JSON format IPDR data
+export function parseJSON(text: string): Array<Record<string, string>> {
+  try {
+    const jsonData = JSON.parse(text);
+    
+    // Handle different JSON structures
+    if (Array.isArray(jsonData)) {
+      // Direct array of records
+      return jsonData.map(record => {
+        const normalizedRecord: Record<string, string> = {};
+        Object.keys(record).forEach(key => {
+          normalizedRecord[key] = String(record[key] || '');
+        });
+        return normalizedRecord;
+      });
+    } else if (jsonData.records && Array.isArray(jsonData.records)) {
+      // Nested under 'records' key
+      return jsonData.records.map((record: any) => {
+        const normalizedRecord: Record<string, string> = {};
+        Object.keys(record).forEach(key => {
+          normalizedRecord[key] = String(record[key] || '');
+        });
+        return normalizedRecord;
+      });
+    } else if (jsonData.data && Array.isArray(jsonData.data)) {
+      // Nested under 'data' key
+      return jsonData.data.map((record: any) => {
+        const normalizedRecord: Record<string, string> = {};
+        Object.keys(record).forEach(key => {
+          normalizedRecord[key] = String(record[key] || '');
+        });
+        return normalizedRecord;
+      });
+    } else if (jsonData.ipdr_records && Array.isArray(jsonData.ipdr_records)) {
+      // Telecom-specific nested structure
+      return jsonData.ipdr_records.map((record: any) => {
+        const normalizedRecord: Record<string, string> = {};
+        Object.keys(record).forEach(key => {
+          normalizedRecord[key] = String(record[key] || '');
+        });
+        return normalizedRecord;
+      });
+    } else {
+      // Single record object
+      const normalizedRecord: Record<string, string> = {};
+      Object.keys(jsonData).forEach(key => {
+        normalizedRecord[key] = String(jsonData[key] || '');
+      });
+      return [normalizedRecord];
+    }
+  } catch (error) {
+    console.error('JSON parsing error:', error);
+    throw new Error('Invalid JSON format. Please ensure the file contains valid JSON data.');
+  }
+}
+
+// Detect file format and parse accordingly
+export function parseFileContent(text: string, filename: string): Array<Record<string, string>> {
+  const extension = filename.toLowerCase().split('.').pop();
+  
+  switch (extension) {
+    case 'json':
+      return parseJSON(text);
+    case 'csv':
+    case 'tsv':
+    case 'txt':
+    default:
+      return parseDelimited(text);
+  }
+}
+
 // Normalize Airtel row to IPDRRecord (using IPs in aParty/bParty, ports in aPort/bPort)
 export async function normalizeAirtelRows(
   rows: Array<Record<string, string>>,
@@ -174,7 +245,7 @@ export async function processAirtelFile(
     const arrayBuf = await blobToArrayBuffer(file);
     const sha256 = await sha256Hex(arrayBuf);
     const text = new TextDecoder().decode(arrayBuf);
-    const rows = parseDelimited(text);
+    const rows = parseFileContent(text, file.name);
     const records = await normalizeAirtelRows(rows, caseId, fileId, 'airtel');
     
     // Log parsing completion
